@@ -1,0 +1,40 @@
+name: Review Windows hook wrapper (synthetic only)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "hooks/run-hook.cmd"
+      - ".github/workflows/woc-hook-safety-review.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  hook-safety:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Static safety review
+        shell: pwsh
+        run: |
+          $source = Get-Content hooks/run-hook.cmd -Raw
+          if ($source -match '(?m)^where bash') { throw "Untrusted PATH lookup found" }
+          if ($source -match '(?m)^\s*bash "%HOOK_DIR%') { throw "Untrusted bash fallback found" }
+          if (-not $source.Contains('trusted Git Bash not found')) { throw "Fail-closed diagnostic missing" }
+      - name: Windows CMD smoke test (no project scripts)
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "woc-hook-review"
+          New-Item -ItemType Directory -Path $dir -Force | Out-Null
+          Copy-Item hooks/run-hook.cmd (Join-Path $dir "run-hook.cmd")
+          @'
+          #!/usr/bin/env bash
+          echo SYNTHETIC_HOOK_OK
+          '@ | Set-Content (Join-Path $dir "synthetic-hook") -Encoding ascii
+          $output = & cmd.exe /d /c "call `"$dir\run-hook.cmd`" synthetic-hook" 2>&1
+          if ($LASTEXITCODE -ne 0 -or ($output -join "`n") -notmatch 'SYNTHETIC_HOOK_OK') {
+            throw "Synthetic CMD hook invocation failed: $output"
+          }
