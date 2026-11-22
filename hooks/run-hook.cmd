@@ -27,16 +27,10 @@ if exist "C:\Program Files (x86)\Git\bin\bash.exe" (
     exit /b %ERRORLEVEL%
 )
 
-REM Try bash on PATH (e.g. user-installed Git Bash, MSYS2, Cygwin)
-where bash >nul 2>nul
-if %ERRORLEVEL% equ 0 (
-    bash "%HOOK_DIR%%~1" %2 %3 %4 %5 %6 %7 %8 %9
-    exit /b %ERRORLEVEL%
-)
-
-REM No bash found - exit silently rather than error
-REM (plugin still works, just without SessionStart context injection)
-exit /b 0
+REM Never resolve bash or where from PATH: an untrusted working directory can
+REM shadow these commands on Windows. Fail closed if known Git Bash is absent.
+echo run-hook.cmd: trusted Git Bash not found; hook not executed >&2
+exit /b 1
 CMDBLOCK
 
 # Unix: run the named script directly
