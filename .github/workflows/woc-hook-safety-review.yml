@@ -1,10 +1,13 @@
-name: Review Windows hook wrapper (synthetic only)
+name: Review startup hooks and skill injection
 
 on:
   pull_request:
     branches: [main]
     paths:
       - "hooks/run-hook.cmd"
+      - "hooks/session-start"
+      - "skills/using-superpowers/SKILL.md"
+      - "tests/hooks/test-session-start.sh"
       - ".github/workflows/woc-hook-safety-review.yml"
 
 permissions:
@@ -38,3 +41,13 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or ($output -join "`n") -notmatch 'SYNTHETIC_HOOK_OK') {
             throw "Synthetic CMD hook invocation failed: $output"
           }
+
+  session-start-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Review SessionStart behavior (synthetic fixtures)
+        shell: bash
+        run: bash tests/hooks/test-session-start.sh
